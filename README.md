@@ -15,8 +15,8 @@ This project uses RNN and LSTM models to forecast methane flux emissions in maiz
 ## 📁 Files
 - `Project2.ipynb`: Main model notebook
 - `Cleaning.Rmd`: Data Cleaning in R
-- `Data.csv`: Environmental inputs
-- `report.pdf`: Final summary
+- `proj2_data_clan.csv`: Environmental inputs
+- `Report.pdf`: Final summary
 
 ## 📌 Status
 Completed – May 2025
