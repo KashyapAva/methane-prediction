@@ -1,6 +1,6 @@
 # Methane Flux Prediction using LSTM
 
-This project uses LSTM and GRU models to forecast methane flux emissions in maize fields using environmental predictors.
+This project uses RNN and LSTM models to forecast methane flux emissions in maize fields using environmental predictors.
 
 ## 🔧 Tools
 - Python
