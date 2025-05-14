@@ -8,13 +8,14 @@ This project uses LSTM and GRU models to forecast methane flux emissions in maiz
 - Time series feature engineering
 
 ## 🔍 Highlights
-- Compared LSTM vs GRU
+- Compared RNN vs LSTM
 - Used Spearman correlation for feature selection
-- Achieved RMSE of X.XX on test set
+- Achieved R-squared of 0.84 on test set
 
 ## 📁 Files
-- `notebook.ipynb`: Main model notebook
-- `data.csv`: Environmental inputs
+- `Project2.ipynb`: Main model notebook
+- `Cleaning.Rmd`: Data Cleaning in R
+- `Data.csv`: Environmental inputs
 - `report.pdf`: Final summary
 
 ## 📌 Status
