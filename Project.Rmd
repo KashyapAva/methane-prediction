@@ -1,0 +1,844 @@
+---
+title: "Project_430"
+author: "Kashyap Ava"
+date: "2025-02-10"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Reading Data
+
+```{r}
+data_biomet <- read.csv("/Users/kashyapava/Desktop/Crop Sciences/New Data/eddypro_MaizeControl_2023_01-08_biomet_2023-09-18T163846_adv.csv", header = TRUE)
+
+# Remove the rows with units in it
+units_biomet <- data_biomet[1,]
+data_biomet <- data_biomet[-1,]
+
+head(data_biomet)
+```
+
+```{r}
+units_biomet
+```
+
+
+
+```{r}
+data_full_output <- read.csv("/Users/kashyapava/Desktop/Crop Sciences/New Data/eddypro_MaizeControl_2023_01-08_full_output_2023-09-18T163846_adv.csv", header = TRUE)
+
+# Select the row to be used as the header (e.g., the first row)
+new_header <- as.character(unlist(data_full_output[1, ]))
+
+# Remove the selected row from the data frame
+data_full_output <- data_full_output[-1, ]
+
+# Assign the new header to the data frame
+colnames(data_full_output) <- new_header
+
+# Remove the row with units
+units_full_output <- data_full_output[1,]
+data_full_output <- data_full_output[-1,]
+
+# View the modified data frame
+head(data_full_output)
+```
+
+```{r}
+units_full_output
+```
+
+
+## Converting the string type numerical values to float
+
+```{r}
+# Exclude the 'date' and 'time' columns
+data_numeric <- data_biomet[, !(names(data_biomet) %in% c("date", "time"))]
+
+# Convert the remaining columns to numeric
+data_numeric[] <- lapply(data_numeric, function(x) as.numeric(as.character(x)))
+
+# Combine the 'date' and 'time' columns back if needed
+data_biomet_clean <- cbind(data_biomet[, c("date", "time")], data_numeric)
+
+# View the modified data frame
+head(data_biomet_clean)
+```
+
+## Data Cleaning
+
+```{r}
+data_biomet_clean$SHF <- apply(data_biomet_clean[, c("SHF_1_1_1", "SHF_1_1_2")], 1, function(row) {
+  valid_values <- row[row != -9999]  # Filter out the -9999 values
+  if (length(valid_values) == 0) {
+    return(-9999)  # If all values are -9999, return -9999
+  } else {
+    return(mean(valid_values))  # Otherwise, return the mean of the valid values
+  }
+})
+
+data_biomet_clean$Ts <- apply(data_biomet_clean[, c("Ts_1_1_1", "Ts_1_1_1.1", "Ts_1_2_1", "Ts_1_3_1", "Ts_1_4_1", "Ts_2_1_1", "Ts_2_2_1", "Ts_2_3_1", "Ts_2_4_1", "Ts_3_1_1", "Ts_3_2_1", "Ts_3_3_1", "Ts_3_4_1", "Ts_3_5_1", "Ts_3_6_1", "Ts_3_7_1", "Ts_3_8_1", "Ts_3_9_1", "Ts_4_1_1", "Ts_4_2_1", "Ts_4_3_1", "Ts_4_4_1", "Ts_4_5_1", "Ts_4_6_1", "Ts_4_7_1", "Ts_4_8_1", "Ts_4_9_1")], 1, function(row) {
+  valid_values <- row[row != -9999]  # Filter out the -9999 values
+  if (length(valid_values) == 0) {
+    return(-9999)  # If all values are -9999, return -9999
+  } else {
+    return(mean(valid_values))  # Otherwise, return the mean of the valid values
+  }
+})
+
+data_biomet_clean$SWC <- apply(data_biomet_clean[, c("SWC_1_1_1", "SWC_1_2_1", "SWC_1_3_1", "SWC_1_4_1", "SWC_2_1_1", "SWC_2_2_1", "SWC_2_3_1", "SWC_2_4_1", "SWC_3_1_1", "SWC_3_2_1", "SWC_3_3_1", "SWC_3_4_1", "SWC_3_5_1", "SWC_3_6_1", "SWC_3_7_1", "SWC_3_8_1", "SWC_3_9_1", "SWC_4_1_1", "SWC_4_2_1", "SWC_4_3_1", "SWC_4_4_1", "SWC_4_5_1", "SWC_4_6_1", "SWC_4_7_1", "SWC_4_8_1", "SWC_4_9_1")], 1, function(row) {
+  valid_values <- row[row != -9999]  # Filter out the -9999 values
+  if (length(valid_values) == 0) {
+    return(-9999)  # If all values are -9999, return -9999
+  } else {
+    return(mean(valid_values))  # Otherwise, return the mean of the valid values
+  }
+})
+
+head(data_biomet_clean)
+
+```
+
+
+## Forming a regression dataset for the time series analysis
+
+```{r}
+regression_data <- data_biomet_clean[, c("date","time", "DOY", "SWin", "SWout", "LWin", "LWout", "Rr", "Rn", "Ta_1_1_1", "RH", "Tc_1_1_1", "PPFD", "PPFDr", "P_rain", "SHF", "Ts", "SWC")]
+
+head(regression_data)
+```
+
+
+# Extracting the target variable - CH4 flux
+
+```{r}
+data_full_output <- data_full_output[, 1:159]
+data_full_output_1 <- data_full_output[, !(names(data_full_output) %in% c("filename", "date", "time" ))]
+
+# Convert the remaining columns to numeric
+data_full_output_1[] <- lapply(data_full_output_1, function(x) as.numeric(as.character(x)))
+
+ch4_flux <- data_full_output_1[,"ch4_flux"]
+ch4_fname <- data_full_output[, "filename"]
+
+new_predictors <- data_full_output[, (names(data_full_output) %in% c("w/ch4_cov", "T*", "LE", "h2o_flux", "ET", "w/h2o_cov",  "w/co2_cov", "co2_flux", "(z-d)/L", "v_var"))]
+
+data_reg <- cbind(regression_data,ch4_flux)
+data_reg_1 <- cbind(data_reg, ch4_fname)
+data_reg_1 <- cbind(data_reg_1, new_predictors)
+head(data_reg_1)
+```
+
+```{r}
+# Load necessary library
+library(dplyr)
+
+# Replace -9999 with NA
+data_full_output_1[data_full_output_1 == -9999] <- NA
+
+# Remove columns with more than 50% NA values
+threshold <- 0.5 * nrow(data_full_output_1)
+data_clean <- data_full_output_1[, colSums(is.na(data_full_output_1)) <= threshold]
+
+# Remove rows with any NA values
+data_clean <- na.omit(data_clean)
+
+dim(data_clean)
+```
+
+```{r}
+head(data_clean)
+```
+
+
+```{r}
+colnames(data_clean)
+```
+
+
+```{r}
+# Remove unwanted columns
+excluded_columns <- c("DOY", "daytime", "file_records", "used_records")  
+numeric_data <- data_clean %>% select(-all_of(excluded_columns)) %>% select(where(is.numeric))
+
+# Compute Spearman correlation with ch4_flux
+correlations <- suppressWarnings(sapply(numeric_data, function(col) cor(col, data_clean$ch4_flux, method = "spearman")))
+
+# Sort by absolute correlation value in descending order
+sorted_correlations <- sort(abs(correlations), decreasing = TRUE)
+
+filtered_correlations <- sorted_correlations[abs(sorted_correlations) > 0.3]
+
+# Print results
+print(filtered_correlations)
+```
+
+```{r}
+as.vector.data.frame(filtered_correlations)
+```
+
+
+
+Explore these predictors to include them in the model:
+
+un_ch4_flux:  Uncorrected Methane flux      
+
+w/ch4_cov : Covariance between w and variable ch4               
+
+T* : Scaling temperature (K)               
+
+LE : Corrected latent heat flux (W m-2)            
+
+un_LE : Uncorrected latent heat flux (W m-2)
+
+h2o_flux : Water flux              
+
+ET : Evapotranspiration flux (mm hour-1)      
+
+un_h2o_flux : Uncorrected Water flux    
+
+w/h2o_cov : Covariance between w and variable h2o      
+
+un_co2_flux : Uncorrected Carbon dioxide flux        
+
+w/co2_cov : Covariance between w and variable co2
+        
+co2_flux : Carbon dioxide flux         
+
+(z-d)/L : Monin-Obukhov stability parameter            
+
+v_var : variance of the v wind component
+
+
+Out of intuition and with caution these were selected to be included:
+
+w/ch4_cov : Covariance between w and variable ch4               
+
+T* : Scaling temperature (K)               
+
+LE : Corrected latent heat flux (W m-2)
+
+h2o_flux : Water flux              
+
+ET : Evapotranspiration flux (mm hour-1)   
+
+w/h2o_cov : Covariance between w and variable h2o      
+
+w/co2_cov : Covariance between w and variable co2
+        
+co2_flux : Carbon dioxide flux         
+
+(z-d)/L : Monin-Obukhov stability parameter            
+
+v_var : variance of the v wind component
+
+
+
+
+```{r}
+# Utilizing the filename column to remove rows with "not enough data"
+# Remove rows where filename is "not enough data"
+
+data_reg_clean <- data_reg_1[data_reg_1$ch4_fname != "not_enough_data", ]
+head(data_reg_clean)
+```
+
+
+```{r}
+# Renaming them as the predictor names
+data_reg_clean$FCH4 <- data_reg_clean[, c("ch4_flux")]
+
+data_reg_clean$Ta <- data_reg_clean[, c("Ta_1_1_1")]
+
+data_reg_clean$Tc <- data_reg_clean[, c("Tc_1_1_1")]
+
+data_final_clean <- data_reg_clean[, !(names(data_reg_clean) %in% c("Ta_1_1_1", "Tc_1_1_1", "ch4_flux", "ch4_fname" ))]
+
+head(data_final_clean)
+```
+
+```{r}
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(data_final_clean, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+# Checking if the null rows for predictors are common
+
+```{r}
+# Remove rows with NA in 'SWin'
+df_cleaned <- data_final_clean[data_final_clean$RH != -9999, ]
+
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(df_cleaned, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+```{r}
+# Remove rows with NA in 'SWin'
+df_cleaned_x <- df_cleaned[df_cleaned$FCH4 != -9999, ]
+
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(df_cleaned_x, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+```{r}
+# Remove rows with NA in 'SWin'
+df_cleaned_y <- df_cleaned_x[df_cleaned_x$LE != -9999, ]
+
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(df_cleaned_y, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+```{r}
+# Remove rows with NA in 'SWin'
+df_cleaned_z <- df_cleaned_y[df_cleaned_y$co2_flux != -9999, ]
+
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(df_cleaned_z, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+
+
+```{r}
+dim(df_cleaned_z)
+```
+
+```{r}
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(df_cleaned_z, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+No null values in the df_cleaned_z data set.
+
+
+
+
+## Feature Engineering
+
+
+
+## Cleaned data
+
+```{r}
+tsa_data <- df_cleaned_z
+
+head(tsa_data)
+```
+
+Checking for null values:
+
+```{r}
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(tsa_data, function(x) sum(is.na(x)))
+
+# Display the counts
+print(counts)
+```
+
+
+```{r}
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(tsa_data, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+Dimension of the final data set for time series analysis:
+
+```{r}
+dim(tsa_data)
+```
+
+
+## Exploratory Data Analysis
+
+```{r}
+tsa_data_stored <- tsa_data
+```
+
+```{r}
+# Replace -9999 values in FCH4 column with NA
+tsa_data_stored$FCH4[tsa_data_stored$FCH4 == -9999] <- NA
+
+# Combine date and time columns into a single POSIXct datetime column
+tsa_data_stored$datetime <- as.POSIXct(paste(tsa_data_stored$date, tsa_data_stored$time), format="%Y-%m-%d %H:%M")
+
+# Plot the data
+plot(tsa_data_stored$datetime, tsa_data_stored$FCH4, type = "l",
+     main = "Time Series Plot of FCH4",
+     xlab = "Datetime",
+     ylab = "FCH4",
+     col = "blue",
+     na.rm = TRUE)
+```
+
+
+From: 2023-05-11 12:00:00
+
+To: 2023-07-10 05:00
+
+For the STAT 430 project, has some null values in between but can be taken care of.
+
+
+
+## Data Exploration for the project
+
+From: 2023-05-11 15:00:00
+
+To: 2023-07-10 05:00
+
+Total rows - 2741 (after cleaning)
+
+```{r}
+proj_data <- tsa_data_stored[tsa_data_stored$datetime >= "2023-05-11 15:00:00" & tsa_data_stored$datetime <= "2023-07-10 05:00:00", ]
+
+head(proj_data)
+```
+
+```{r}
+dim(proj_data)
+```
+
+From: 2023-05-11 15:00:00
+
+To: 2023-07-10 01:30
+
+Total rows - 2726 (after cleaning with added predictors)
+
+```{r}
+sum(is.na(proj_data))
+```
+
+
+```{r}
+# Plot the data
+plot(proj_data$datetime, proj_data$FCH4, type = "l",
+     main = "Time Series Plot of FCH4",
+     xlab = "Datetime",
+     ylab = "FCH4 (µmol+1s-1m-2)",
+     col = "blue",
+     na.rm = TRUE)
+```
+
+Changed start date to 2023-05-11 15:00:00.
+
+Total rows - 2726.
+
+
+```{r}
+summary(proj_data[, "P_rain"])
+```
+
+
+```{r}
+# change the precipitation units from m to mm
+proj_data[, "P_rain"] <- 1000 * proj_data[, "P_rain"]
+summary(proj_data[, "P_rain"])
+```
+
+```{r}
+# Define your data as named vectors
+variable_names <- c("ch4_flux", "un_ch4_flux", "w/ch4_cov", "T*", "LE", 
+                    "un_LE", "h2o_flux", "ET", "un_h2o_flux", "w/h2o_cov",
+                    "un_co2_flux", "w/co2_cov", "co2_flux", "(z-d)/L", "v_var")
+
+values <- c(1.0000000, 0.6289260, 0.6289260, 0.3280700, 0.3272453, 
+            0.3270026, 0.3262913, 0.3262911, 0.3259612, 0.3259612, 
+            0.3156560, 0.3156560, 0.3054115, 0.3033668, 0.3012782)
+
+# Create a DataFrame
+output_table <- data.frame(Variable = variable_names, Value = values)
+
+# Print as a table
+print(output_table, row.names = FALSE)
+```
+
+```{r}
+# Save as CSV
+write.csv(proj_data, "proj2_data_clean.csv", row.names = FALSE)
+```
+
+
+
+The cleaned and prepared files are exported to csv.
+
+
+```{r}
+library(dplyr)
+
+# Drop irrelevant columns for correlation tests (e.g., date, time, datetime)
+tsa_data_new <- proj_data_clean %>% select(-c(date, time, datetime))
+
+# Filter out rows with missing FCH4 values
+tsa_data_filtered <- tsa_data_new %>% filter(!is.na(FCH4))
+
+# List of predictors
+predictors <- setdiff(names(tsa_data_filtered), "FCH4")
+
+# Calculate Pearson correlation
+pearson_results <- sapply(predictors, function(x) {
+  cor(tsa_data_filtered[[x]], tsa_data_filtered$FCH4, method = "pearson", use = "complete.obs")
+})
+
+# Convert results to a data frame with clear labeling
+pearson_results <- data.frame(
+  Target = "FCH4",
+  Predictor = names(pearson_results),
+  PearsonCorrelation = pearson_results
+)
+
+# Sort by absolute correlation
+pearson_results <- pearson_results %>% arrange(desc(abs(PearsonCorrelation)))
+
+# Display results
+print(pearson_results)
+```
+
+
+Weak correlation observed and so motivates non linear models.
+
+```{r}
+acf(proj_data_clean$FCH4)
+```
+
+```{r}
+pacf(proj_data_clean$FCH4)
+```
+
+```{r}
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(proj_data_clean, function(x) sum(x == -9999))
+
+# Display the counts
+print(counts)
+```
+
+
+```{r}
+# Count the number of rows with values equal to -9999 in each column
+counts <- sapply(proj_data_clean, function(x) sum(is.na(x)))
+
+# Display the counts
+print(counts)
+```
+
+So no missing/ null values in proj_data_clean and since linear modelsm do not work well, lets start off the modeling with decision trees.
+
+
+## Modeling the time series data
+
+```{r}
+# Load required packages
+library(rpart)
+library(rpart.plot)
+
+# Ensure date and time are in proper formats
+proj_data_clean$datetime <- as.POSIXct(proj_data_clean$datetime)
+
+# Fit a decision tree model
+tree_model <- rpart(FCH4 ~ Rn + Ta + RH + Tc + Ts + P_rain + SWC, 
+                    data = proj_data_clean, 
+                    method = "anova")  # "anova" for continuous target variable
+
+# Plot the tree
+rpart.plot(tree_model)
+
+# Print the model summary
+print(tree_model)
+
+# Predict on the dataset
+proj_data_clean$FCH4_pred <- predict(tree_model, newdata = proj_data_clean)
+
+# Evaluate model performance
+library(Metrics)
+mse_val <- mse(proj_data_clean$FCH4, proj_data_clean$FCH4_pred)
+mae_val <- mae(proj_data_clean$FCH4, proj_data_clean$FCH4_pred)
+
+cat("Mean Squared Error:", mse_val, "\n")
+cat("Mean Absolute Error:", mae_val, "\n")
+```
+
+Steps:
+
+Data Preparation - form the subset (done)
+
+Null values - see how can we handle the null values (ignored)
+
+Consider train/ test data from rows without null values. (train test split)
+
+Validation data set from other observations for performance (good idea, to be done)
+
+Regression variables of interest: infer from the correlation analysis (okay, to be done)
+
+Modeling motivation from the data visualization - 2 models (done)
+
+Model Evaluation (will be done)
+
+
+```{r}
+# Load required packages
+library(rpart)
+library(rpart.plot)
+library(caret)   # For train-test split
+library(Metrics) # For evaluation metrics
+
+# Ensure datetime is in proper format
+proj_data_clean$datetime <- as.POSIXct(proj_data_clean$datetime)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train-test split (80%-20%)
+train_index <- createDataPartition(proj_data_clean$FCH4, p = 0.8, list = FALSE)
+train_data <- proj_data_clean[train_index, ]
+test_data <- proj_data_clean[-train_index, ]
+
+# Fit a decision tree model on the training set
+tree_model <- rpart(FCH4 ~ Rn + Ta + RH + Tc + Ts + P_rain + SWC, 
+                    data = train_data, 
+                    method = "anova")  # "anova" for continuous target variable
+
+# Plot the tree
+rpart.plot(tree_model)
+
+# Print the model summary
+print(tree_model)
+
+# Make predictions on the test set
+test_predictions <- predict(tree_model, newdata = test_data)
+
+# Evaluate model performance using better metrics
+rmse_val <- rmse(test_data$FCH4, test_predictions)
+r2_val <- cor(test_data$FCH4, test_predictions)^2  # R-squared
+mape_val <- mean(abs((test_data$FCH4 - test_predictions) / test_data$FCH4)) * 100  # Percentage error
+
+cat("Root Mean Squared Error (RMSE):", rmse_val, "\n")
+cat("R-squared (R²):", r2_val, "\n")
+cat("Mean Absolute Percentage Error (MAPE):", mape_val, "%\n")
+```
+
+```{r}
+# Load required packages
+library(rpart)
+library(rpart.plot)
+library(caret)
+library(Metrics)
+
+# Ensure datetime is in proper format
+proj_data_clean$datetime <- as.POSIXct(proj_data_clean$datetime)
+
+# Remove any missing values
+proj_data_clean <- na.omit(proj_data_clean)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train-test split (80%-20%)
+train_index <- createDataPartition(proj_data_clean$FCH4, p = 0.8, list = FALSE)
+train_data <- proj_data_clean[train_index, ]
+test_data <- proj_data_clean[-train_index, ]
+
+# Define hyperparameter grid
+grid <- expand.grid(cp = seq(0.0001, 0.1, by = 0.005))  # Smaller increments for better tuning
+
+# Train decision tree with cross-validation
+train_control <- trainControl(method = "cv", number = 10)  # 10-fold CV for better stability
+tree_model <- train(FCH4 ~ Rn + Ta + RH + Tc + Ts + P_rain + SWC, 
+                    data = train_data, 
+                    method = "rpart",
+                    trControl = train_control,
+                    tuneGrid = grid,
+                    control = rpart.control(minsplit = 2, maxdepth = 4))  # Adjusted params
+
+# Print best cp value
+cat("Best cp:", tree_model$bestTune$cp, "\n")
+
+# Plot the final decision tree
+rpart.plot(tree_model$finalModel)
+
+# Predict on the test set
+test_predictions <- predict(tree_model, newdata = test_data)
+
+# Ensure predictions are not constant (check variance)
+if (var(test_predictions) == 0) {
+    cat("Warning: Predictions have zero variance! Adjusting model parameters is recommended.\n")
+}
+
+# Evaluate performance
+rmse_val <- rmse(test_data$FCH4, test_predictions)
+r2_val <- ifelse(var(test_data$FCH4) > 0, cor(test_data$FCH4, test_predictions)^2, NA)  # R² fix
+mape_val <- mean(abs((test_data$FCH4 - test_predictions) / test_data$FCH4)) * 100  # MAPE
+
+cat("Root Mean Squared Error (RMSE):", rmse_val, "\n")
+cat("R-squared (R²):", r2_val, "\n")
+cat("Mean Absolute Percentage Error (MAPE):", mape_val, "%\n")
+
+
+```
+
+```{r}
+# Load required packages
+library(randomForest)
+library(caret)
+library(Metrics)
+
+# Ensure datetime is in proper format
+proj_data_clean$datetime <- as.POSIXct(proj_data_clean$datetime)
+
+# Remove any missing values
+proj_data_clean <- na.omit(proj_data_clean)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train-test split (80%-20%)
+train_index <- createDataPartition(proj_data_clean$FCH4, p = 0.8, list = FALSE)
+train_data <- proj_data_clean[train_index, ]
+test_data <- proj_data_clean[-train_index, ]
+
+# Fit a Random Forest model
+rf_model <- randomForest(FCH4 ~ Rn + Ta + RH + Tc + Ts + P_rain + SWC, 
+                         data = train_data, 
+                         ntree = 500,  # Number of trees
+                         mtry = 3,     # Number of predictors considered at each split
+                         importance = TRUE)
+
+# Print model summary
+print(rf_model)
+
+# Feature importance plot
+varImpPlot(rf_model)
+
+# Predict on the test set
+test_predictions <- predict(rf_model, newdata = test_data)
+
+# Evaluate performance
+rmse_val <- rmse(test_data$FCH4, test_predictions)
+r2_val <- ifelse(var(test_data$FCH4) > 0, cor(test_data$FCH4, test_predictions)^2, NA)
+mape_val <- mean(abs((test_data$FCH4 - test_predictions) / test_data$FCH4)) * 100  
+
+cat("Root Mean Squared Error (RMSE):", rmse_val, "\n")
+cat("R-squared (R²):", r2_val, "\n")
+cat("Mean Absolute Percentage Error (MAPE):", mape_val, "%\n")
+```
+
+```{r}
+# Load required packages
+library(randomForest)
+library(caret)
+library(Metrics)
+
+# Ensure datetime is in proper format
+proj_data_clean$datetime <- as.POSIXct(proj_data_clean$datetime)
+
+# Remove any missing values
+proj_data_clean <- na.omit(proj_data_clean)
+
+# Set seed for reproducibility
+set.seed(123)
+
+# Train-test split (80%-20%)
+train_index <- createDataPartition(proj_data_clean$FCH4, p = 0.8, list = FALSE)
+train_data <- proj_data_clean[train_index, ]
+test_data <- proj_data_clean[-train_index, ]
+
+# Define tuning grid (only for mtry)
+tune_grid <- expand.grid(mtry = c(2, 3, 4, 5))  # Number of predictors at each split
+
+# Define training control for cross-validation
+train_control <- trainControl(method = "cv", number = 5, verboseIter = TRUE)
+
+# Train Random Forest model with tuning
+rf_tuned <- train(FCH4 ~ Rn + Ta + RH + Tc + Ts + P_rain + SWC,
+                  data = train_data,
+                  method = "rf",
+                  metric = "RMSE",
+                  tuneGrid = tune_grid,
+                  trControl = train_control,
+                  ntree = 500)  # Manually set number of trees
+
+# Print best model
+print(rf_tuned$bestTune)
+
+# Predict on the test set using the best model
+test_predictions <- predict(rf_tuned, newdata = test_data)
+
+# Evaluate performance
+rmse_val <- rmse(test_data$FCH4, test_predictions)
+r2_val <- ifelse(var(test_data$FCH4) > 0, cor(test_data$FCH4, test_predictions)^2, NA)
+mape_val <- mean(abs((test_data$FCH4 - test_predictions) / test_data$FCH4)) * 100  
+
+# Display results
+cat("Root Mean Squared Error (RMSE):", rmse_val, "\n")
+cat("R-squared (R²):", r2_val, "\n")
+cat("Mean Absolute Percentage Error (MAPE):", mape_val, "%\n")
+
+# Plot feature importance
+varImpPlot(rf_tuned$finalModel)
+```
+
+
+```{r}
+# Apply log transformation to the target variable to scale down the values
+proj_data_clean$log_FCH4 <- log1p(proj_data_clean$FCH4)  # log(1 + FCH4)
+
+# Train-test split (80%-20%)
+train_data <- proj_data_clean[train_index, ]
+test_data <- proj_data_clean[-train_index, ]
+
+# Train Random Forest model with log-transformed target
+rf_tuned_log <- train(log_FCH4 ~ Rn + Ta + RH + Tc + Ts + P_rain + SWC,
+                      data = train_data,
+                      method = "rf",
+                      metric = "RMSE",
+                      tuneGrid = tune_grid,
+                      trControl = train_control,
+                      ntree = 500)  # Fixed number of trees
+
+# Print best model
+print(rf_tuned_log$bestTune)
+
+# Predict on the test set
+test_predictions_log <- predict(rf_tuned_log, newdata = test_data)
+
+# Inverse transformation to get original scale
+test_predictions <- expm1(test_predictions_log)  # Exponentiate and subtract 1 to revert log(1+FCH4)
+
+# Evaluate performance on original scale
+rmse_val <- rmse(test_data$FCH4, test_predictions)
+r2_val <- ifelse(var(test_data$FCH4) > 0, cor(test_data$FCH4, test_predictions)^2, NA)
+mape_val <- mean(abs((test_data$FCH4 - test_predictions) / test_data$FCH4)) * 100  
+
+# Display results
+cat("Root Mean Squared Error (RMSE):", rmse_val, "\n")
+cat("R-squared (R²):", r2_val, "\n")
+cat("Mean Absolute Percentage Error (MAPE):", mape_val, "%\n")
+```
+
+
+
+
+
+
+
