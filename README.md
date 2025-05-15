@@ -28,7 +28,8 @@ Methane is a potent greenhouse gas, and understanding its emission patterns in a
 ## 🎯 Key Results
 - LSTM outperformed traditional RNN and classical models (SARIMA, random forest) in forecasting methane flux.
 - Lagged variables significantly improved temporal predictive accuracy.
-- Final RMSE on test data: *[Insert RMSE here]*
+- Final R-squared on test data: *0.84*
+- Final RMSE on test data: *0.0111*
 
 ## 🛠 Tools & Frameworks
 - Python
